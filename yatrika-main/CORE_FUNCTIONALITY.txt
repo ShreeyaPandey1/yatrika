@@ -1,0 +1,31 @@
+During the hackathon, the project successfully delivers a working prototype focusing on three critical safety functionalities:
+
+1. Emergency SOS System
+
+The platform includes a real-time SOS alert mechanism designed for immediate distress situations. When a user triggers the SOS (e.g., long press action), the system:
+
+Sends instant alerts to pre-registered emergency contacts
+Shares the user’s live location via map link
+Dispatches multiple notifications in quick succession to ensure visibility
+
+This ensures that help is notified within seconds, even in high-risk situations.
+
+2. Blockchain-Based Data Logging
+
+To ensure data integrity and trust, the system stores critical user information on the blockchain. This includes:
+
+Basic user identity details
+Trip or session-related data
+User’s last known or reported location
+
+By using blockchain, the data becomes tamper-proof and transparent, which is crucial for accountability during emergency investigations and verification processes.
+
+3. Geo-Fencing for Safety Monitoring
+
+The system implements geo-fencing to monitor user movement relative to predefined safe and unsafe zones. Key features include:
+
+Detection when a user enters a restricted or high-risk area
+Real-time alerts and warnings to the user
+Visualization of safe (green) and unsafe (red) zones on the map
+
+This helps in preventing risky situations before they escalate into emergencies.

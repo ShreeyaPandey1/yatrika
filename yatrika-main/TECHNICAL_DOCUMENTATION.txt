@@ -1,0 +1,222 @@
+# Technical Documentation
+
+## Final Architecture Overview
+
+Yatrika is a multi-service safety platform for tourists. The system is organized as a lightweight microservice-style architecture with separate execution units for the tourist application, the police/admin application, the AI inference engine, and the blockchain ledger integration.
+
+At a high level:
+
+1. The tourist frontend runs as a static web application in the browser.
+2. The tourist backend manages authentication, profiles, itineraries, journeys, panic alerts, and QR verification.
+3. The police backend exposes officer/admin APIs and pushes live alerts to dashboards using Socket.IO.
+4. The AI engine evaluates movement data and detects anomalous GPS patterns.
+5. The blockchain layer records journey lifecycle events and panic hashes on an Ethereum-compatible network.
+6. MongoDB is the operational system of record for users, journeys, panic calls, e-FIR data, and location history.
+
+## Language and Technology Choices
+
+The implementation uses the following languages:
+
+- JavaScript: primary application language for both Node.js backends and the browser frontends.
+- Python: AI inference service built with FastAPI.
+- Solidity: smart contract for immutable journey and panic-event logging.
+- HTML/CSS: static frontend delivery, with Tailwind-style utility usage and vanilla JavaScript in the client.
+
+The project does not use Rust, C++, or Java in the current architecture.
+
+## Service Breakdown
+
+### 1. Tourist Frontend
+
+Location: [frontend/tourist/index.html](/abs/path/C:/Users/Desktop/yatrika/frontend/tourist/index.html)
+
+This is a browser-based single-page interface for tourists. It is a static application that talks directly to the tourist backend over HTTP. It also uses browser geolocation and map rendering libraries to display routes, checkpoints, and emergency context.
+
+Primary responsibilities:
+
+- user registration and login
+- itinerary and journey interaction
+- live GPS check-ins
+- panic/SOS submission
+- QR-based identity presentation
+
+### 2. Tourist Backend
+
+Location: [backend/index.js](/abs/path/C:/Users/Desktop/yatrika/backend/index.js)
+
+This service is the core transactional backend. It is implemented in Node.js with Express and Mongoose and exposes REST APIs for:
+
+- authentication
+- profile management
+- itinerary CRUD
+- active journey lifecycle
+- panic event capture
+- QR verification
+- admin-oriented tourist data access
+
+It also coordinates with:
+
+- MongoDB for persistence
+- the AI service for anomaly detection
+- the blockchain service for on-chain event recording
+
+### 3. Police/Admin Backend
+
+Location: [police_backend/index.js](/abs/path/C:/Users/Drive/Desktop/yatrika/police_backend/index.js)
+
+This is a separate Node.js + Express backend dedicated to police officers and admins. It adds a Socket.IO server for live emergency propagation to dashboards. The police backend listens for new panic events through MongoDB change streams and emits `new-panic-alert` updates to connected clients.
+
+Primary responsibilities:
+
+- officer/admin authentication
+- dashboard APIs
+- real-time panic notification fan-out
+- operational monitoring support
+
+### 4. AI Inference Engine
+
+Location: [backend/ai_engines/main.py](/abs/path/C:/Users/Desktop/yatrika/backend/ai_engines/main.py)
+
+The AI engine is implemented in Python using FastAPI. It exposes two inference endpoints:
+
+- `/calculate-score/` for rule-based safety scoring
+- `/detect-anomaly/` for GPS sequence anomaly detection
+
+The anomaly pipeline uses:
+
+- TensorFlow/Keras model file: `tourist_anomaly_model.h5`
+- `joblib`-loaded scaler: `scaler.gz`
+- NumPy for tensor preparation
+- a threshold file in JSON for anomaly classification
+
+This service is intentionally isolated from the main backend so that model loading and inference dependencies do not complicate the Node.js runtime.
+
+### 5. Blockchain Layer
+
+Locations:
+
+- [backend/contracts/TourChainLedger.sol](/abs/path/C:/Users/Desktop/yatrika/backend/contracts/TourChainLedger.sol)
+- [backend/services/blockchainService.js](/abs/path/C:/Users/Desktop/yatrika/backend/services/blockchainService.js)
+
+The blockchain component is a Solidity smart contract deployed through Hardhat. The Node.js backend connects through `ethers.js` to an Ethereum-compatible JSON-RPC endpoint and writes three event types:
+
+- journey start
+- panic alert
+- journey end
+
+The chain is used as an immutable audit layer rather than as the primary database. Detailed traveler data remains in MongoDB, while blockchain stores event evidence and hashes suitable for tamper-evident verification.
+
+## Data Flow
+
+### Tourist Journey Flow
+
+1. A tourist authenticates through the tourist backend using JWT.
+2. The user creates or selects an itinerary stored in MongoDB.
+3. Starting a journey creates an `ActiveJourney` record in MongoDB.
+4. A QR token is issued for verification.
+5. The backend writes the journey-start event to the blockchain.
+
+### Safety Monitoring Flow
+
+1. The client periodically sends GPS check-in batches to the tourist backend.
+2. The backend stores these points in `LocationHistory`.
+3. Once sufficient points are available, the backend sends the most recent sequence to the FastAPI AI service.
+4. If the AI response indicates an anomaly, the tourist backend escalates to a panic event automatically.
+
+### Panic Response Flow
+
+1. A panic event can be triggered manually by the tourist or automatically by the AI logic.
+2. The tourist backend stores the panic record in MongoDB.
+3. A panic hash is written to the blockchain.
+4. The police backend detects the inserted panic record through MongoDB change streams.
+5. The police backend emits a real-time alert to connected admin/police dashboards through Socket.IO.
+6. e-FIR generation logic can create a structured report from the panic event and tourist profile.
+
+## Database Design
+
+Both Node backends use MongoDB via Mongoose. Core collections/models include:
+
+- `User`
+- `Profile`
+- `ItineraryDraft`
+- `ActiveJourney`
+- `LocationHistory`
+- `PanicCall`
+- `EfirReport`
+- `VerificationLog`
+- `Officer`
+
+MongoDB is the system of record because the application needs flexible document storage for variable itinerary data, family members, GPS history, and incident metadata.
+
+## Hardware Integrations
+
+The current architecture uses commodity client hardware rather than custom devices. Relevant integrations are:
+
+- smartphone or laptop GPS via the browser geolocation API
+- camera/QR scanning capability on client devices for identity verification workflows
+- standard server compute for Node.js, Python inference, and MongoDB
+
+There is no evidence in the current codebase of custom embedded hardware, IoT gateways, edge devices, or specialized sensors.
+
+## Cloud and External Integrations
+
+The architecture is cloud-compatible but mostly environment-driven. The codebase indicates the following external or cloud-facing integrations:
+
+- MongoDB, either local or MongoDB Atlas, via `MONGO_URI`
+- Ethereum-compatible RPC endpoint, either local Hardhat or a hosted node provider, via `BLOCKCHAIN_RPC`
+- OpenStreetMap tiles rendered through Leaflet in the frontend
+- Socket.IO over standard web infrastructure for dashboard updates
+
+There is also a commented frontend API URL pointing to Render, which suggests optional cloud deployment on Render for the tourist backend, but this is not enforced by the code.
+
+## Deployment Model
+
+The intended deployment model is a small distributed setup:
+
+- static frontend hosting for `frontend/tourist` and `frontend/admin`
+- one Node.js service for tourists
+- one Node.js service for police/admin operations
+- one Python FastAPI service for AI inference
+- one MongoDB instance
+- one Ethereum-compatible node or hosted RPC provider
+
+This can run entirely on a developer machine for demonstration or be split across containers/VMs for production.
+
+## Security Model
+
+Security in the implemented architecture is based on:
+
+- JWT authentication for tourist and police/admin APIs
+- role separation through separate backends
+- hashed or tokenized verification artifacts
+- blockchain-backed tamper evidence for critical journey events
+
+Sensitive operational configuration is expected through environment variables, including:
+
+- `MONGO_URI`
+- `JWT_SECRET`
+- `PRIVATE_KEY`
+- `BLOCKCHAIN_RPC`
+- `CONTRACT_ADDRESS`
+
+## Architectural Strengths
+
+- Clear separation between tourist and police operational domains
+- AI inference isolated from the transactional backend
+- Real-time alerting through Socket.IO and MongoDB change streams
+- Blockchain used appropriately for auditability instead of primary storage
+- Static frontend architecture keeps client deployment simple
+
+## Current Implementation Notes
+
+The repository contains a few inconsistencies that should be treated as deployment notes:
+
+- `backend/services/aiIntegrationService.js` calls the AI service at `http://localhost:8000/detect-anomaly/`, while `backend/ai_engines/main.py` is configured to run on port `5001`.
+- `police_backend/index.js` defaults to port `5001`, which conflicts with the AI service default in `main.py`.
+- `backend/services/blockchainService.js` imports `../utils/abi/YatrikaLedger.json`, while the repository currently contains `backend/utils/abi/TourChainLedger.json`.
+
+These do not change the target architecture, but they do affect the accuracy of a live deployment unless normalized.
+
+## Summary
+
+The final architecture is a JavaScript-first web platform with a Python AI sidecar and a Solidity smart-contract audit layer. It is designed to combine operational flexibility from MongoDB, real-time response through Socket.IO, tamper-evident event logging on Ethereum-compatible infrastructure, and browser-native mobile capabilities such as geolocation and QR workflows. No specialized hardware is required; cloud usage is optional and primarily limited to database hosting, RPC access, and standard web deployment.

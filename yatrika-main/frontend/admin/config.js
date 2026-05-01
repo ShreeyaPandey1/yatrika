@@ -1,0 +1,2 @@
+window.API_URL = "http://localhost:5001";
+window.CONTRACT_ADDRESS = "0x566724a98FF10ABFDCaa3A9fB09c35D8e061d6c2";
